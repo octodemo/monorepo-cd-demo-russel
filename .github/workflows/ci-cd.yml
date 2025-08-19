@@ -1,0 +1,307 @@
+name: Monorepo CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+  GO_VERSION: '1.21'
+  JAVA_VERSION: '17'
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      shared: ${{ steps.changes.outputs.shared }}
+      apps: ${{ steps.changes.outputs.apps }}
+      services: ${{ steps.changes.outputs.services }}
+      infrastructure: ${{ steps.changes.outputs.infrastructure }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes
+        id: changes
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "shared=true" >> $GITHUB_OUTPUT
+            echo "apps=true" >> $GITHUB_OUTPUT
+            echo "services=true" >> $GITHUB_OUTPUT
+            echo "infrastructure=true" >> $GITHUB_OUTPUT
+          else
+            # Get list of changed files
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
+            else
+              CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+            fi
+            
+            echo "Changed files:"
+            echo "$CHANGED_FILES"
+            
+            # Check for changes in shared libraries
+            if echo "$CHANGED_FILES" | grep -q "^shared/"; then
+              echo "shared=true" >> $GITHUB_OUTPUT
+            else
+              echo "shared=false" >> $GITHUB_OUTPUT
+            fi
+            
+            # Check for changes in apps
+            if echo "$CHANGED_FILES" | grep -q "^apps/"; then
+              echo "apps=true" >> $GITHUB_OUTPUT
+            else
+              echo "apps=false" >> $GITHUB_OUTPUT
+            fi
+            
+            # Check for changes in services
+            if echo "$CHANGED_FILES" | grep -q "^services/"; then
+              echo "services=true" >> $GITHUB_OUTPUT
+            else
+              echo "services=false" >> $GITHUB_OUTPUT
+            fi
+            
+            # Check for changes in infrastructure
+            if echo "$CHANGED_FILES" | grep -q "^infrastructure/"; then
+              echo "infrastructure=true" >> $GITHUB_OUTPUT
+            else
+              echo "infrastructure=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Set deployment matrix
+        id: set-matrix
+        run: |
+          MATRIX_INCLUDE="[]"
+          
+          # If shared libraries changed, rebuild everything
+          if [[ "${{ steps.changes.outputs.shared }}" == "true" ]]; then
+            MATRIX_INCLUDE=$(echo '$MATRIX_INCLUDE' | jq '. + [
+              {"service": "react-app", "path": "apps/react-app", "language": "node"},
+              {"service": "node-api", "path": "services/node-api", "language": "node"}
+            ]')
+          else
+            # Check specific changed services/apps
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] || [[ "${{ steps.changes.outputs.apps }}" == "true" ]]; then
+              if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] || git diff --name-only ${{ github.event.before || github.event.pull_request.base.sha }} ${{ github.sha }} | grep -q "^apps/react-app/"; then
+                MATRIX_INCLUDE=$(echo '$MATRIX_INCLUDE' | jq '. + [{"service": "react-app", "path": "apps/react-app", "language": "node"}]')
+              fi
+            fi
+            
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] || [[ "${{ steps.changes.outputs.services }}" == "true" ]]; then
+              if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] || git diff --name-only ${{ github.event.before || github.event.pull_request.base.sha }} ${{ github.sha }} | grep -q "^services/node-api/"; then
+                MATRIX_INCLUDE=$(echo '$MATRIX_INCLUDE' | jq '. + [{"service": "node-api", "path": "services/node-api", "language": "node"}]')
+              fi
+            fi
+          fi
+          
+          MATRIX="{\"include\": $MATRIX_INCLUDE}"
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          echo "Deployment matrix: $MATRIX"
+
+  build-shared:
+    name: Build Shared Libraries
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.shared == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared libraries
+        run: |
+          npm run build --workspace=shared/utils
+          npm run build --workspace=shared/config
+          npm run build --workspace=shared/types
+
+      - name: Run tests
+        run: |
+          npm run test --workspace=shared/utils --if-present
+          npm run test --workspace=shared/config --if-present
+
+      - name: Cache shared builds
+        uses: actions/cache@v3
+        with:
+          path: |
+            shared/*/lib
+          key: shared-build-${{ github.sha }}
+
+  test-and-build:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    needs: [detect-changes, build-shared]
+    if: ${{ fromJson(needs.detect-changes.outputs.matrix).include[0] != null }}
+    strategy:
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: matrix.language == 'node'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Python
+        if: matrix.language == 'python'
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Setup Go
+        if: matrix.language == 'go'
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Setup Java
+        if: matrix.language == 'java'
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Restore shared builds cache
+        if: needs.detect-changes.outputs.shared == 'true'
+        uses: actions/cache@v3
+        with:
+          path: |
+            shared/*/lib
+          key: shared-build-${{ github.sha }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --workspace=${{ matrix.path }} --if-present
+
+      - name: Test
+        run: npm run test --workspace=${{ matrix.path }} --if-present
+
+      - name: Build
+        run: npm run build --workspace=${{ matrix.path }} --if-present
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.service }}-build
+          path: |
+            ${{ matrix.path }}/dist
+            ${{ matrix.path }}/build
+            ${{ matrix.path }}/lib
+          retention-days: 7
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    if: ${{ fromJson(needs.detect-changes.outputs.matrix).include[0] != null }}
+    needs: detect-changes
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: [detect-changes, test-and-build, security-scan]
+    if: ${{ fromJson(needs.detect-changes.outputs.matrix).include[0] != null && github.ref == 'refs/heads/main' }}
+    strategy:
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+      fail-fast: false
+    environment: 
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.service }}-build
+          path: ./${{ matrix.path }}/
+
+      - name: Deploy to production
+        id: deploy
+        run: |
+          echo "🚀 Deploying ${{ matrix.service }} to production..."
+          echo "url=https://${{ matrix.service }}.example.com" >> $GITHUB_OUTPUT
+          # In a real scenario, this would deploy to your cloud provider
+          # e.g., AWS, Azure, GCP, or your own infrastructure
+
+      - name: Health check
+        run: |
+          echo "🏥 Running health check for ${{ matrix.service }}..."
+          # In a real scenario, you'd check the deployed service health
+          # curl -f https://${{ matrix.service }}.example.com/health
+
+      - name: Notify deployment
+        run: |
+          echo "✅ Successfully deployed ${{ matrix.service }} to production"
+
+  deployment-summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [detect-changes, deploy]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Changed components:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Shared: ${{ needs.detect-changes.outputs.shared }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Apps: ${{ needs.detect-changes.outputs.apps }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Services: ${{ needs.detect-changes.outputs.services }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Infrastructure: ${{ needs.detect-changes.outputs.infrastructure }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment matrix:**" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo '${{ needs.detect-changes.outputs.matrix }}' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

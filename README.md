@@ -1,6 +1,6 @@
-# Monorepo Continuous Delivery Demo - Solution #2
+# Comprehensive Monorepo Deployment Patterns Demo
 
-This repository demonstrates **Solution #2** from the DEV.to article "Implementing Continuous Delivery for GitHub Monorepos and Microservices with GitHub Actions". This approach uses `git diff` to intelligently detect which microservices have changed and deploy only those services.
+This repository demonstrates **modern monorepo deployment patterns** with comprehensive CI/CD practices for multi-technology stacks. It showcases intelligent change detection, selective deployment, dependency-aware builds, and real-world deployment patterns.
 
 ## 🏗️ Architecture Overview
 
@@ -8,35 +8,69 @@ This repository demonstrates **Solution #2** from the DEV.to article "Implementi
 root/
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml          # Smart deployment workflow
-├── package.json                # Root workspace configuration
-├── README.md                   # This file
-└── services/
-    ├── service-a/              # User Management Service (Port 3001)
-    ├── service-b/              # Order Processing Service (Port 3002)
-    └── service-c/              # Notification Service (Port 3003)
+│       └── ci-cd.yml           # Comprehensive CI/CD pipeline
+├── apps/                       # Frontend Applications
+│   ├── react-app/              # React TypeScript App (Port 3000)
+│   ├── vue-app/                # Vue.js App (Port 3001)
+│   └── angular-app/            # Angular App (Port 3002)
+├── services/                   # Backend Services
+│   ├── node-api/               # Node.js/Express API (Port 4000)
+│   ├── python-api/             # Python Flask API (Port 4001)
+│   ├── go-service/             # Go Microservice (Port 4002)
+│   └── java-service/           # Java Spring Boot (Port 4003)
+├── shared/                     # Shared Libraries
+│   ├── utils/                  # Common utilities
+│   ├── config/                 # Configuration packages
+│   ├── types/                  # TypeScript type definitions
+│   └── ui-components/          # Shared React components
+├── infrastructure/             # Infrastructure as Code
+│   ├── terraform/              # Terraform modules
+│   ├── kubernetes/             # Kubernetes manifests
+│   └── docker/                 # Docker configurations
+├── docs/                       # Documentation
+└── package.json                # Root workspace configuration
 ```
 
-## 🚀 How Solution #2 Works
+## 🚀 Key Features
 
-1. **Change Detection**: Uses `git diff` to identify which service directories have been modified
-2. **Conditional Deployment**: Only deploys services that actually changed
-3. **Parallel Processing**: Multiple changed services deploy simultaneously
-4. **Efficiency**: Avoids unnecessary deployments, saving time and resources
+1. **Intelligent Change Detection**: Uses `git diff` to identify modified components
+2. **Selective Deployment**: Only deploys services that actually changed
+3. **Dependency-Aware Builds**: Rebuilds dependent services when shared libraries change
+4. **Parallel Processing**: Multiple services deploy simultaneously for faster CI/CD
+5. **Multi-Environment Support**: Development, staging, and production configurations
+6. **Security Scanning**: Automated vulnerability detection and quality gates
+7. **Multi-Technology Stack**: React, Vue, Angular, Node.js, Python, Go, Java
 
-## 📋 Services
+## 📋 Services & Applications
 
-| Service | Purpose | Port | Endpoints |
-|---------|---------|------|-----------|
-| service-a | User Management | 3001 | `/`, `/health`, `/users` |
-| service-b | Order Processing | 3002 | `/`, `/health`, `/orders` |
-| service-c | Notification Service | 3003 | `/`, `/health`, `/notifications` |
+### Frontend Applications
+| Application | Technology | Port | Status | Description |
+|-------------|------------|------|--------|-------------|
+| react-app | React + TypeScript | 3000 | ✅ Ready | Modern React application with shared utilities |
+| vue-app | Vue.js 3 | 3001 | 🚧 Coming Soon | Vue.js application with Composition API |
+| angular-app | Angular 16+ | 3002 | 🚧 Coming Soon | Angular application with standalone components |
+
+### Backend Services
+| Service | Technology | Port | Status | Description |
+|---------|------------|------|--------|-------------|
+| node-api | Node.js + Express | 4000 | ✅ Ready | RESTful API with TypeScript |
+| python-api | Python + Flask | 4001 | 🚧 Coming Soon | Python API with FastAPI/Flask |
+| go-service | Go + Gin | 4002 | 🚧 Coming Soon | High-performance Go microservice |
+| java-service | Java + Spring Boot | 4003 | 🚧 Coming Soon | Enterprise Java service |
+
+### Shared Libraries
+| Library | Purpose | Status |
+|---------|---------|--------|
+| @monorepo/utils | Common utility functions | ✅ Ready |
+| @monorepo/config | Configuration management | ✅ Ready |
+| @monorepo/types | TypeScript type definitions | ✅ Ready |
+| @monorepo/ui-components | Shared React components | 🚧 Coming Soon |
 
 ## 🔧 Getting Started
 
 ### Prerequisites
 - Node.js 20+
-- Docker (optional, for containerization)
+- Docker & Docker Compose (optional, for containerization)
 - Git
 
 ### Local Development
@@ -52,64 +86,103 @@ root/
    npm install
    ```
 
-3. **Start all services**:
+3. **Build shared libraries**:
+   ```bash
+   npm run build --workspace=shared/utils
+   npm run build --workspace=shared/config
+   npm run build --workspace=shared/types
+   ```
+
+4. **Start all services**:
    ```bash
    npm run start:all
    ```
 
-4. **Or start individual services**:
+5. **Or start individual services**:
    ```bash
-   npm run start:service-a
-   npm run start:service-b
-   npm run start:service-c
+   # Frontend
+   npm run start --workspace=apps/react-app
+   
+   # Backend
+   npm run dev --workspace=services/node-api
    ```
 
 ### Testing the Services
 
-- **Service A**: http://localhost:3001
-- **Service B**: http://localhost:3002  
-- **Service C**: http://localhost:3003
+- **React App**: http://localhost:3000
+- **Node.js API**: http://localhost:4000
 
 Health checks available at `/health` endpoint for each service.
 
+### Using Docker
+
+```bash
+# Build and start all services
+npm run docker:up
+
+# Build specific service
+docker build -t react-app -f apps/react-app/Dockerfile .
+docker build -t node-api -f services/node-api/Dockerfile .
+
+# Run with Docker Compose
+docker-compose -f infrastructure/docker/docker-compose.yml up
+```
+
 ## 🤖 CI/CD Workflow
 
-The GitHub Actions workflow (`.github/workflows/deploy.yml`) implements the following logic:
+The GitHub Actions workflow (`.github/workflows/ci-cd.yml`) implements advanced deployment patterns:
 
 ```yaml
-# Simplified workflow logic:
-1. Checkout code with full history
-2. Detect changed services using git diff
-3. Create deployment matrix for changed services only
-4. Deploy services in parallel
-5. Report deployment status
+# Advanced workflow features:
+1. Intelligent change detection using git diff
+2. Dynamic deployment matrix generation
+3. Shared library dependency management
+4. Parallel builds and deployments
+5. Security scanning with Trivy
+6. Multi-environment deployment support
+7. Rollback mechanisms and health checks
 ```
+
+### Key Workflow Jobs
+
+- **detect-changes**: Analyzes git diff to determine what changed
+- **build-shared**: Builds shared libraries when needed
+- **test-and-build**: Runs tests and builds for changed services
+- **security-scan**: Performs vulnerability scanning
+- **deploy**: Deploys services to target environments
 
 ### Triggering Deployments
 
 - **Automatic**: Push to `main` branch
 - **Manual**: Use "Run workflow" button in GitHub Actions
+- **Pull Request**: Builds and tests (no deployment)
 
 ### Testing Change Detection
 
-1. **Modify a single service**:
+1. **Modify a shared library**:
    ```bash
-   echo "console.log('Updated!');" >> services/service-a/index.js
-   git add . && git commit -m "Update service-a"
+   echo "export const newUtil = () => 'new';" >> shared/utils/src/index.ts
+   git add . && git commit -m "Update shared utils"
    git push
    ```
+   Result: All dependent services rebuild and deploy
 
-2. **Check Actions tab** - Only service-a should deploy!
+2. **Modify a specific service**:
+   ```bash
+   echo "// Updated" >> services/node-api/src/index.ts
+   git add . && git commit -m "Update node-api"
+   git push
+   ```
+   Result: Only the node-api service deploys
 
 3. **Modify multiple services**:
    ```bash
-   echo "// Updated" >> services/service-a/index.js
-   echo "// Updated" >> services/service-b/index.js
-   git add . && git commit -m "Update service-a and service-b"
+   echo "// Updated" >> apps/react-app/src/App.tsx
+   echo "// Updated" >> services/node-api/src/index.ts
+   git add . && git commit -m "Update react-app and node-api"
    git push
    ```
-
-4. **Check Actions tab** - Both services should deploy in parallel!
+   Result: Both services deploy in parallel
 
 ## 🐳 Docker Support
 

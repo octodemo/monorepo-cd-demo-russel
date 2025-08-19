@@ -1,0 +1,60 @@
+{
+  "name": "monorepo-cd-demo",
+  "version": "1.0.0",
+  "description": "Comprehensive monorepo deployment patterns demonstration with modern CI/CD practices",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "shared/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "dev": "concurrently \"npm run dev --workspace=apps/react-app\" \"npm run dev --workspace=services/node-api\"",
+    "start:all": "concurrently \"npm run start --workspaces --if-present\"",
+    "clean": "npm run clean --workspaces --if-present && rimraf node_modules",
+    "docker:build": "docker-compose -f infrastructure/docker/docker-compose.yml build",
+    "docker:up": "docker-compose -f infrastructure/docker/docker-compose.yml up -d",
+    "docker:down": "docker-compose -f infrastructure/docker/docker-compose.yml down",
+    "k8s:deploy": "kubectl apply -f infrastructure/kubernetes/",
+    "terraform:plan": "cd infrastructure/terraform && terraform plan",
+    "terraform:apply": "cd infrastructure/terraform && terraform apply"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "concurrently": "^8.2.0",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/octodemo/monorepo-cd-demo-russel.git"
+  },
+  "keywords": [
+    "monorepo",
+    "ci-cd",
+    "github-actions",
+    "microservices",
+    "deployment",
+    "devops",
+    "typescript",
+    "react",
+    "vue",
+    "angular",
+    "nodejs",
+    "python",
+    "go",
+    "java",
+    "terraform",
+    "kubernetes",
+    "docker"
+  ],
+  "author": "GitHub Demo",
+  "license": "MIT"
+}
