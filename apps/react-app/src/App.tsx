@@ -1,7 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { formatDate, generateId } from '@monorepo/utils';
-import { ApiResponse, User, HealthCheck } from '@monorepo/types';
 import './App.css';
+
+// Simple interfaces for demo (will integrate shared libraries later)
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface HealthCheck {
+  status: 'healthy' | 'unhealthy';
+  service: string;
+  version: string;
+  timestamp: string;
+  uptime?: number;
+}
 
 interface AppState {
   users: User[];
@@ -25,13 +42,13 @@ function App() {
         
         const mockUsers: User[] = [
           {
-            id: generateId(),
+            id: '1',
             email: 'john.doe@example.com',
             firstName: 'John',
             lastName: 'Doe',
-            role: 'user' as any,
-            createdAt: formatDate(new Date()),
-            updatedAt: formatDate(new Date())
+            role: 'user',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
           }
         ];
 
@@ -39,7 +56,7 @@ function App() {
           status: 'healthy',
           service: 'react-app',
           version: '1.0.0',
-          timestamp: formatDate(new Date()),
+          timestamp: new Date().toISOString(),
           uptime: 3600
         };
 

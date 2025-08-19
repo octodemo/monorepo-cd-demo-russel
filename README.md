@@ -184,59 +184,130 @@ The GitHub Actions workflow (`.github/workflows/ci-cd.yml`) implements advanced 
    ```
    Result: Both services deploy in parallel
 
-## 🐳 Docker Support
+## 🛠️ Infrastructure
 
-Each service includes a Dockerfile optimized for production:
+### Docker & Container Support
+
+The repository includes comprehensive Docker support with multi-stage builds:
 
 ```bash
-# Build specific service
-docker build -t service-a ./services/service-a
+# Build and run with Docker Compose
+docker-compose -f infrastructure/docker/docker-compose.yml up
 
-# Run service
-docker run -p 3001:3001 service-a
+# Build individual services
+docker build -t react-app -f apps/react-app/Dockerfile .
+docker build -t node-api -f services/node-api/Dockerfile .
+docker build -t python-api -f services/python-api/Dockerfile .
 ```
 
-## 📊 Monitoring
+### Kubernetes Deployment
 
-All services include health check endpoints:
+Kubernetes manifests for production deployment:
+
+```bash
+# Deploy to Kubernetes
+kubectl apply -f infrastructure/kubernetes/
+
+# Monitor deployments
+kubectl get pods -n monorepo
+kubectl get services -n monorepo
+```
+
+### Terraform Infrastructure
+
+Infrastructure as Code using Terraform modules:
+
+```bash
+# Initialize and plan
+cd infrastructure/terraform/environments/dev
+terraform init
+terraform plan
+
+# Apply infrastructure
+terraform apply
+```
+
+**Modules included:**
+- VPC with public/private subnets
+- ECS cluster for container orchestration
+- RDS for database management
+- Security groups and networking
+
+## 📊 Monitoring & Observability
+
+### Health Checks
+
+All services include standardized health check endpoints:
 
 ```bash
 # Check service health
-curl http://localhost:3001/health
-curl http://localhost:3002/health  
-curl http://localhost:3003/health
+curl http://localhost:3000/health  # React App
+curl http://localhost:4000/health  # Node.js API
+curl http://localhost:4001/health  # Python API
 ```
 
-Response format:
-```json
-{
-  "status": "healthy",
-  "service": "service-a",
-  "version": "1.0.0",
-  "timestamp": "2024-01-01T00:00:00.000Z"
-}
+### Metrics Collection
+
+Services expose metrics for monitoring:
+
+```bash
+curl http://localhost:4000/metrics  # Node.js API metrics
+curl http://localhost:4001/metrics  # Python API metrics
 ```
+
+### Docker Compose Monitoring Stack
+
+The Docker Compose setup includes:
+- **Prometheus**: Metrics collection
+- **Grafana**: Metrics visualization
+- **PostgreSQL**: Database services
+- **Redis**: Caching layer
+
+Access monitoring:
+- Grafana: http://localhost:3001 (admin/admin)
+- Prometheus: http://localhost:9090
 
 ## 🔄 Adding New Services
 
+The monorepo structure makes it easy to add new services:
+
 1. **Create service directory**:
    ```bash
-   mkdir services/service-d
+   mkdir -p services/my-new-service/src
+   # or for apps
+   mkdir -p apps/my-new-app/src
    ```
 
-2. **Add package.json, index.js, Dockerfile, README.md** (follow existing patterns)
+2. **Add package.json** following existing patterns
 
-3. **Update root package.json** with new scripts
+3. **Update root package.json** to include the new workspace
 
-4. **The workflow automatically detects new services** - no changes needed!
+4. **Create Dockerfile** for containerization
 
-## 🎯 Key Benefits of Solution #2
+5. **Add Kubernetes manifests** in `infrastructure/kubernetes/`
 
-- ✅ **Efficient**: Only deploys what changed
-- ✅ **Fast**: Parallel deployment of multiple services
-- ✅ **Scalable**: Easy to add new services
-- ✅ **Reliable**: Git-based change detection
-- ✅ **Transparent**: Clear logging of what's being deployed
+6. **Update CI/CD workflow** - automatic detection in most cases!
+
+### Supported Technologies
+
+The monorepo supports multiple technology stacks:
+
+- **Frontend**: React, Vue.js, Angular
+- **Backend**: Node.js, Python, Go, Java
+- **Databases**: PostgreSQL, Redis
+- **Infrastructure**: Docker, Kubernetes, Terraform
+- **CI/CD**: GitHub Actions with advanced workflows
+
+## 🎯 Key Benefits
+
+- ✅ **Intelligent Change Detection**: Only builds and deploys what changed
+- ✅ **Dependency-Aware Builds**: Rebuilds dependent services automatically
+- ✅ **Parallel Processing**: Fast deployments with concurrent builds
+- ✅ **Multi-Technology Support**: Mix and match languages and frameworks
+- ✅ **Infrastructure as Code**: Terraform modules for repeatable deployments
+- ✅ **Container-First**: Docker and Kubernetes ready
+- ✅ **Security Built-in**: Automated vulnerability scanning
+- ✅ **Scalable Architecture**: Proven patterns for enterprise use
 
 ## 🛠️ Troubleshooting
 
