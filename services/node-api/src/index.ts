@@ -33,7 +33,7 @@ let users: User[] = [
     email: 'john.doe@example.com',
     firstName: 'John',
     lastName: 'Doe',
-    role: 'user' as any,
+    role: UserRole.USER,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   }
