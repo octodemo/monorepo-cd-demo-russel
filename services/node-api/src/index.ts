@@ -24,7 +24,7 @@ let users: User[] = [
     email: 'admin@example.com',
     firstName: 'Admin',
     lastName: 'User',
-    role: 'admin' as any,
+    role: UserRole.ADMIN,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
