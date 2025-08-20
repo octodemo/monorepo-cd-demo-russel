@@ -103,7 +103,7 @@ app.post('/api/users', (req, res) => {
     email: createUserData.email,
     firstName: createUserData.firstName,
     lastName: createUserData.lastName,
-    role: createUserData.role || 'user' as any,
+    role: createUserData.role || UserRole.USER,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
